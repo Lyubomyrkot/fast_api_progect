@@ -8,7 +8,9 @@ class Artist(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     bio: Annotated[str | None, Field(min_length=2, max_length=500)]
+
     tracks: list["Track"] = Relationship(back_populates="artist")
+
 
 class Track(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -17,6 +19,7 @@ class Track(SQLModel, table=True):
     album: Annotated[str | None, Field(min_length=2, max_length=100)]
 
     artist: Artist = Relationship(back_populates="tracks")
+
 
 class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)

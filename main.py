@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
 from pydantic import BaseModel, Field
 from typing import Union, Annotated
 
@@ -11,6 +11,10 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
+
+from fastapi.templating import Jinja2Templates
+
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 SECRET_KEY = "19109197bd5e7c289b92b2b355083ea26c71dee2085ceccc19308a7291b2ea06"
@@ -52,6 +56,8 @@ SessionDep = Annotated[Session, Depends(get_session)]
 # Створення екземпляру FastAPI
 app = FastAPI()
 
+templates = Jinja2Templates(directory="templates")
+
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
@@ -75,8 +81,13 @@ async def token_get(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], 
 
 # Маршрут, який обробляє GET-запити на кореневий шлях
 @app.get("/")
-async def index():
-    return "Hello FastAPI!"
+async def index(request: Request, session: SessionDep):
+    tracks = session.exec(select(Track)).all()
+    return templates.TemplateResponse(
+        request=request, 
+        name="tracks.html", 
+        context={"tracks": tracks})
+    
 
 
 @app.get("/tracks/all")
@@ -90,7 +101,15 @@ async def get_track(track_id: int, session: SessionDep):
     track = session.get(Track, track_id)
     if not track:
         raise HTTPException(status_code=404, detail="Track not found")
-    return {"track": track}
+    return {"track": track, "artist": track.artist}
+
+
+@app.get("/artist/{artist_id}")
+async def get_artist(artist_id: int, session: SessionDep):
+    artist = session.get(Artist, artist_id)
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    return {"artist": artist, "tracks": artist.tracks}
 
 
 @app.patch("/tracks/{track_id}")
@@ -116,6 +135,12 @@ async def add_new_track(track: Track, session: SessionDep, token: str = Depends(
     session.refresh(track)
     return track
 
+@app.post("/artists/add")
+async def add_new_artist(artist: Artist, session: SessionDep, token: str = Depends(oauth2_scheme)):
+    session.add(artist)
+    session.commit()
+    session.refresh(artist)
+    return artist
 
 @app.delete("/tracks/delete/{track_id}")
 async def delete_track(track_id: int, session: SessionDep, token: str = Depends(oauth2_scheme)):
