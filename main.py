@@ -89,7 +89,6 @@ async def index(request: Request, session: SessionDep):
         context={"tracks": tracks})
     
 
-
 @app.get("/tracks/all")
 async def get_all_tracks(session: SessionDep):
     tracks = session.exec(select(Track)).all()
